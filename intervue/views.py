@@ -11,17 +11,7 @@ class InterviewSchedulerViewSet(viewsets.ModelViewSet):
     serializer_class = TimeSlotSerializer
 
     def create(self, request):
-        """
-        Register availability for a candidate or interviewer
-
-        Example POST data:
-        {
-            "user_id": "123",
-            "user_type": "CANDIDATE",
-            "start_time": "2024-02-05T10:00:00",
-            "end_time": "2024-02-05T14:00:00"
-        }
-        """
+        
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             serializer.save()
