@@ -11,7 +11,7 @@ This is a DRF API that allows candidates and interviewers to schedule available 
 1. **Clone the Repository**
    ```bash
    git clone https://github.com/Athulraj72/interview_scheduler
-   cd django-interview-scheduler
+   cd interview_scheduler
    
 ## Create  a Virtual Environment
     ```bash
