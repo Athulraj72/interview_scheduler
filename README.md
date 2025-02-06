@@ -29,7 +29,7 @@ This is a DRF API that allows candidates and interviewers to schedule available 
     ```bash
     python manage.py runserver
 
-## Testing API Using Postman***
+## Testing API Using Postman
 - Open Postman.
 - Choose "New Request".
     
