@@ -11,7 +11,9 @@ class InterviewSchedulerViewSet(viewsets.ModelViewSet):
     serializer_class = TimeSlotSerializer
 
     def create(self, request):
-        
+        """
+        Create a new time slot.
+        """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -21,7 +23,7 @@ class InterviewSchedulerViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def check_overlap(self, request):
         """
-        Check overlapping available time slots between candidate and interviewer
+        Check overlapping time slots between a candidate and an interviewer.
         """
         serializer = OverlapCheckSerializer(data=request.data)
         if not serializer.is_valid():
@@ -29,49 +31,25 @@ class InterviewSchedulerViewSet(viewsets.ModelViewSet):
 
         data = serializer.validated_data
 
-        # Base filters
-        candidate_filter = {
-            'user_id': data['candidate_id'],
-            'user_type': 'CANDIDATE'
-        }
+        # Filter criteria
+        candidate_slots = TimeSlot.objects.filter(
+            user_id=data['candidate_id'], user_type='CANDIDATE'
+        )
+        interviewer_slots = TimeSlot.objects.filter(
+            user_id=data['interviewer_id'], user_type='INTERVIEWER'
+        )
 
-        interviewer_filter = {
-            'user_id': data['interviewer_id'],
-            'user_type': 'INTERVIEWER'
-        }
-
-        # Add date filter if provided
         if 'date' in data:
-            start_of_day = datetime.combine(data['date'], datetime.min.time())
-            end_of_day = datetime.combine(data['date'], datetime.max.time())
-            candidate_filter['start_time__date'] = data['date']
-            interviewer_filter['start_time__date'] = data['date']
+            candidate_slots = candidate_slots.filter(start_time__date=data['date'])
+            interviewer_slots = interviewer_slots.filter(start_time__date=data['date'])
 
-        # Get time slots with logging
-        candidate_slots = TimeSlot.objects.filter(**candidate_filter)
-        interviewer_slots = TimeSlot.objects.filter(**interviewer_filter)
-
-        # Debug logging
-        print(f"Candidate filter: {candidate_filter}")
-        print(f"Interviewer filter: {interviewer_filter}")
-        print(f"Found {candidate_slots.count()} candidate slots")
-        print(f"Found {interviewer_slots.count()} interviewer slots")
-
-        # Find overlapping slots
+        # Find overlapping time slots
         available_slots = []
         for c_slot in candidate_slots:
-            print(f"\nCandidate slot: {c_slot.start_time} - {c_slot.end_time}")
             for i_slot in interviewer_slots:
-                print(f"Checking against interviewer slot: {i_slot.start_time} - {i_slot.end_time}")
-                # Find overlap
-                start = max(c_slot.start_time, i_slot.start_time)
-                end = min(c_slot.end_time, i_slot.end_time)
+                start, end = max(c_slot.start_time, i_slot.start_time), min(c_slot.end_time, i_slot.end_time)
 
-                print(f"Potential overlap: {start} - {end}")
-
-                if start < end:
-                    print("Found overlap!")
-                    # Generate 1-hour slots within overlap
+                if start < end:  # Valid overlap
                     current = start
                     while current + timedelta(hours=1) <= end:
                         available_slots.append({
@@ -81,32 +59,4 @@ class InterviewSchedulerViewSet(viewsets.ModelViewSet):
                         })
                         current += timedelta(hours=1)
 
-        response_data = {
-            'overlapping_slots': available_slots,
-            'debug_info': {
-                'candidate_slots_count': candidate_slots.count(),
-                'interviewer_slots_count': interviewer_slots.count(),
-                'candidate_slots': [{
-                    'start': slot.start_time,
-                    'end': slot.end_time
-                } for slot in candidate_slots],
-                'interviewer_slots': [{
-                    'start': slot.start_time,
-                    'end': slot.end_time
-                } for slot in interviewer_slots]
-            },
-            'availability_summary': {
-                'candidate': [{
-                    'date': slot.start_time.date().strftime('%Y-%m-%d'),
-                    'start_time': slot.start_time.strftime('%H:%M'),
-                    'end_time': slot.end_time.strftime('%H:%M')
-                } for slot in candidate_slots],
-                'interviewer': [{
-                    'date': slot.start_time.date().strftime('%Y-%m-%d'),
-                    'start_time': slot.start_time.strftime('%H:%M'),
-                    'end_time': slot.end_time.strftime('%H:%M')
-                } for slot in interviewer_slots]
-            }
-        }
-
-        return Response(response_data)
+        return Response({'overlapping_slots': available_slots}, status=status.HTTP_200_OK)
